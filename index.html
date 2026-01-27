@@ -227,23 +227,36 @@
             }
 
             initializeUI() {
+                // Load saved settings
+                this.loadSettings();
+
                 // BPM controls
                 this.bpmSlider = document.getElementById('bpmSlider');
                 this.bpmValue = document.getElementById('bpmValue');
                 
+                // Set initial values from loaded settings
+                this.bpmSlider.value = this.bpm;
+                this.bpmValue.textContent = this.bpm;
+                
                 this.bpmSlider.addEventListener('input', (e) => {
                     this.bpm = parseInt(e.target.value);
                     this.bpmValue.textContent = this.bpm;
+                    this.saveSettings();
                 });
 
                 // Subdivisions controls
                 this.subdivisionsSlider = document.getElementById('subdivisionsSlider');
                 this.subdivisionsValue = document.getElementById('subdivisionsValue');
                 
+                // Set initial values from loaded settings
+                this.subdivisionsSlider.value = this.subdivisions;
+                this.subdivisionsValue.textContent = this.subdivisions;
+                
                 this.subdivisionsSlider.addEventListener('input', (e) => {
                     this.subdivisions = parseInt(e.target.value);
                     this.subdivisionsValue.textContent = this.subdivisions;
                     this.updateBeatIndicator();
+                    this.saveSettings();
                 });
 
                 // Start/Stop buttons
@@ -256,6 +269,32 @@
                 // Beat indicator
                 this.beatIndicator = document.getElementById('beatIndicator');
                 this.updateBeatIndicator();
+            }
+
+            loadSettings() {
+                try {
+                    const savedBpm = localStorage.getItem('metronome-bpm');
+                    const savedSubdivisions = localStorage.getItem('metronome-subdivisions');
+                    
+                    if (savedBpm !== null) {
+                        this.bpm = parseInt(savedBpm);
+                    }
+                    
+                    if (savedSubdivisions !== null) {
+                        this.subdivisions = parseInt(savedSubdivisions);
+                    }
+                } catch (e) {
+                    console.warn('Could not load settings from localStorage:', e);
+                }
+            }
+
+            saveSettings() {
+                try {
+                    localStorage.setItem('metronome-bpm', this.bpm.toString());
+                    localStorage.setItem('metronome-subdivisions', this.subdivisions.toString());
+                } catch (e) {
+                    console.warn('Could not save settings to localStorage:', e);
+                }
             }
 
             updateBeatIndicator() {
