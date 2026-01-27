@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metronome with Submarks</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            min-width: 400px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input[type="number"],
+        input[type="range"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        input[type="range"] {
+            padding: 0;
+            height: 8px;
+            background: #e0e0e0;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .value-display {
+            text-align: center;
+            font-size: 24px;
+            color: #667eea;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #startBtn {
+            background: #667eea;
+            color: white;
+        }
+
+        #startBtn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #stopBtn {
+            background: #ef4444;
+            color: white;
+        }
+
+        #stopBtn:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        #stopBtn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .beat-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
+            min-height: 60px;
+            align-items: center;
+        }
+
+        .beat {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            transition: all 0.1s;
+        }
+
+        .beat.active {
+            background: #667eea;
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .beat.main {
+            width: 50px;
+            height: 50px;
+        }
+
+        .beat.main.active {
+            background: #ef4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Metronome</h1>
+        
+        <div class="control-group">
+            <label for="bpm">BPM (Beats Per Minute)</label>
+            <input type="range" id="bpmSlider" min="30" max="240" value="90">
+            <div class="value-display" id="bpmValue">90</div>
+        </div>
+
+        <div class="control-group">
+            <label for="subdivisions">Subdivisions (Notes Per Beat)</label>
+            <input type="range" id="subdivisionsSlider" min="1" max="8" value="4">
+            <div class="value-display" id="subdivisionsValue">4</div>
+        </div>
+
+        <div class="button-group">
+            <button id="startBtn">Start</button>
+            <button id="stopBtn" disabled>Stop</button>
+        </div>
+
+        <div class="beat-indicator" id="beatIndicator"></div>
+    </div>
+
+    <script>
+        class Metronome {
+            constructor() {
+                this.audioContext = null;
+                this.bpm = 90;
+                this.subdivisions = 4;
+                this.isPlaying = false;
+                this.currentBeat = 0;
+                this.nextNoteTime = 0;
+                this.scheduleAheadTime = 0.1; // Schedule 100ms ahead
+                this.timerID = null;
+                
+                this.initializeAudio();
+                this.initializeUI();
+            }
+
+            initializeAudio() {
+                // Audio context will be created on first user interaction
+                this.audioContext = null;
+            }
+
+            ensureAudioContext() {
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            initializeUI() {
+                // BPM controls
+                this.bpmSlider = document.getElementById('bpmSlider');
+                this.bpmValue = document.getElementById('bpmValue');
+                
+                this.bpmSlider.addEventListener('input', (e) => {
+                    this.bpm = parseInt(e.target.value);
+                    this.bpmValue.textContent = this.bpm;
+                });
+
+                // Subdivisions controls
+                this.subdivisionsSlider = document.getElementById('subdivisionsSlider');
+                this.subdivisionsValue = document.getElementById('subdivisionsValue');
+                
+                this.subdivisionsSlider.addEventListener('input', (e) => {
+                    this.subdivisions = parseInt(e.target.value);
+                    this.subdivisionsValue.textContent = this.subdivisions;
+                    this.updateBeatIndicator();
+                });
+
+                // Start/Stop buttons
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                
+                this.startBtn.addEventListener('click', () => this.start());
+                this.stopBtn.addEventListener('click', () => this.stop());
+
+                // Beat indicator
+                this.beatIndicator = document.getElementById('beatIndicator');
+                this.updateBeatIndicator();
+            }
+
+            updateBeatIndicator() {
+                this.beatIndicator.innerHTML = '';
+                for (let i = 0; i < this.subdivisions; i++) {
+                    const beat = document.createElement('div');
+                    beat.className = i === 0 ? 'beat main' : 'beat';
+                    beat.id = `beat-${i}`;
+                    this.beatIndicator.appendChild(beat);
+                }
+            }
+
+            playSound(time, isMainBeat) {
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+
+                if (isMainBeat) {
+                    // Main beat: higher pitch and louder
+                    oscillator.frequency.value = 1000;
+                    gainNode.gain.value = 0.3;
+                } else {
+                    // Sub beat: lower pitch and quieter
+                    oscillator.frequency.value = 800;
+                    gainNode.gain.value = 0.15;
+                }
+
+                oscillator.start(time);
+                oscillator.stop(time + 0.05); // 50ms duration
+            }
+
+            visualizeBeat(beatIndex) {
+                // Clear all beats
+                document.querySelectorAll('.beat').forEach(beat => {
+                    beat.classList.remove('active');
+                });
+
+                // Highlight current beat
+                const currentBeatElement = document.getElementById(`beat-${beatIndex}`);
+                if (currentBeatElement) {
+                    currentBeatElement.classList.add('active');
+                    
+                    // Remove active class after animation
+                    setTimeout(() => {
+                        currentBeatElement.classList.remove('active');
+                    }, 100);
+                }
+            }
+
+            scheduler() {
+                // Schedule all notes that need to play before next interval
+                while (this.nextNoteTime < this.audioContext.currentTime + this.scheduleAheadTime) {
+                    const isMainBeat = this.currentBeat === 0;
+                    this.playSound(this.nextNoteTime, isMainBeat);
+                    
+                    // Schedule visual update closer to the actual beat time
+                    const visualDelay = (this.nextNoteTime - this.audioContext.currentTime) * 1000;
+                    setTimeout(() => {
+                        this.visualizeBeat(this.currentBeat);
+                    }, visualDelay > 0 ? visualDelay : 0);
+
+                    // Calculate next note time
+                    const secondsPerBeat = 60.0 / this.bpm;
+                    const secondsPerSubdivision = secondsPerBeat / this.subdivisions;
+                    this.nextNoteTime += secondsPerSubdivision;
+
+                    // Advance beat counter
+                    this.currentBeat = (this.currentBeat + 1) % this.subdivisions;
+                }
+
+                if (this.isPlaying) {
+                    this.timerID = setTimeout(() => this.scheduler(), 25); // Check every 25ms
+                }
+            }
+
+            start() {
+                if (this.isPlaying) return;
+
+                this.ensureAudioContext();
+                
+                this.isPlaying = true;
+                this.currentBeat = 0;
+                this.nextNoteTime = this.audioContext.currentTime;
+                
+                this.startBtn.disabled = true;
+                this.stopBtn.disabled = false;
+                this.bpmSlider.disabled = true;
+                this.subdivisionsSlider.disabled = true;
+                
+                this.scheduler();
+            }
+
+            stop() {
+                if (!this.isPlaying) return;
+
+                this.isPlaying = false;
+                
+                if (this.timerID) {
+                    clearTimeout(this.timerID);
+                    this.timerID = null;
+                }
+
+                this.startBtn.disabled = false;
+                this.stopBtn.disabled = true;
+                this.bpmSlider.disabled = false;
+                this.subdivisionsSlider.disabled = false;
+
+                // Clear all beat indicators
+                document.querySelectorAll('.beat').forEach(beat => {
+                    beat.classList.remove('active');
+                });
+            }
+        }
+
+        // Initialize metronome when page loads
+        const metronome = new Metronome();
+    </script>
+</body>
+</html>
