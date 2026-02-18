@@ -332,24 +332,38 @@
             }
 
             playSound(time, isMainBeat) {
+                // Create a sharp click sound similar to a mechanical metronome
                 const oscillator = this.audioContext.createOscillator();
                 const gainNode = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
 
-                oscillator.connect(gainNode);
+                oscillator.connect(filter);
+                filter.connect(gainNode);
                 gainNode.connect(this.audioContext.destination);
 
+                // Use a very short, percussive envelope for a "click" sound
                 if (isMainBeat) {
-                    // Main beat: higher pitch and louder
-                    oscillator.frequency.value = 1000;
-                    gainNode.gain.value = 0.3;
+                    // Main beat: higher pitch, sharper attack
+                    oscillator.frequency.value = 1800;
+                    filter.type = 'highpass';
+                    filter.frequency.value = 1000;
+                    
+                    // Sharp attack and fast decay
+                    gainNode.gain.setValueAtTime(0.5, time);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.02);
                 } else {
-                    // Sub beat: lower pitch and quieter
-                    oscillator.frequency.value = 800;
-                    gainNode.gain.value = 0.15;
+                    // Sub beat: slightly lower pitch, softer
+                    oscillator.frequency.value = 1400;
+                    filter.type = 'highpass';
+                    filter.frequency.value = 800;
+                    
+                    // Sharp attack and fast decay
+                    gainNode.gain.setValueAtTime(0.25, time);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.02);
                 }
 
                 oscillator.start(time);
-                oscillator.stop(time + 0.05); // 50ms duration
+                oscillator.stop(time + 0.03); // Very short 30ms duration for sharp click
             }
 
             visualizeBeat(beatIndex) {
