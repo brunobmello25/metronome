@@ -239,7 +239,7 @@
             <button id="stopBtn" disabled>Stop</button>
         </div>
 
-        <button id="tapBtn">Tap Tempo (T / Space)</button>
+        <button id="tapBtn">Tap Tempo (T)</button>
 
         <div class="beat-indicator" id="beatIndicator"></div>
     </div>
@@ -317,8 +317,10 @@
                 this.tapBtn.addEventListener('click', () => this.tap());
 
                 document.addEventListener('keydown', (e) => {
-                    if (e.key === 't' || e.key === 'T' || e.key === ' ') {
+                    if (e.key === ' ') {
                         e.preventDefault();
+                        this.isPlaying ? this.stop() : this.start();
+                    } else if (e.key === 't' || e.key === 'T') {
                         this.tap();
                     }
                 });
